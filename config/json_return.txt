@@ -1,0 +1,44 @@
+
+/* Route: /api/v1/user/signin */
+
+GOOD:
+{
+    code: 200
+    message: "OK"
+    param: [
+        token: <<le token>>
+    ]
+}
+
+BAD:
+{
+    code: 4xx
+    error: <<error name>>
+    message: <<error message>>
+}
+
+
+MON TREE
+const FILE_SYSTEM: FileSystemNode[] = [
+    {
+      id : 1,
+      name: '3rd Year',
+      children: [{ id : 2, name: 'Protos' }, { id : 3,  name: 'Documentation' }, { id : 4, name: 'Exercises' }],
+    },
+    {
+      id : 2,
+      name: 'Perso',
+      children: [
+        {
+          id : 3,
+          name: 'Project',
+          children: [{ id : 5, name: 'Ideas' }, { id : 6, name: 'Management' }],
+        },
+        {
+          id : 4,
+          name: 'Research',
+          children: [{ id : 7, name: 'Papers' }, { id : 8, name: 'POC' }],
+        },
+      ],
+    },
+  ];

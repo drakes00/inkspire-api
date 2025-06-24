@@ -1,0 +1,20 @@
+kind: pipeline
+type: docker
+name: continuous integration
+
+trigger:
+  branch:
+    - master
+    - dev
+  event:
+    - push
+
+steps:
+  # sonar code php analisys
+  - name: code-analysis-web
+    image: aosapps/drone-sonar-plugin
+    settings:
+      sonar_host:
+        from_secret: https://codefirst.iut.uca.fr/sonar/
+      sonar_token:
+        from_secret: secret_sonar_token
