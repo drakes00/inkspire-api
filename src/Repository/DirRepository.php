@@ -16,31 +16,28 @@ class DirRepository extends ServiceEntityRepository
         parent::__construct($registry, Dir::class);
     }
 
-    public function findById(int $id) : ?Dir
-    {
-        return $this->createQueryBuilder('d')
-            ->where('d.id = :id')
-            ->setParameter('id', $id)
-            ->getQuery()
-            ->getOneOrNullResult();
-    }
+    //    /**
+    //     * @return Dir[] Returns an array of Dir objects
+    //     */
+    //    public function findByExampleField($value): array
+    //    {
+    //        return $this->createQueryBuilder('d')
+    //            ->andWhere('d.exampleField = :val')
+    //            ->setParameter('val', $value)
+    //            ->orderBy('d.id', 'ASC')
+    //            ->setMaxResults(10)
+    //            ->getQuery()
+    //            ->getResult()
+    //        ;
+    //    }
 
-    public function findByIdIfParent(int $id)
-    {
-        return $this->createQueryBuilder('d')
-            ->where('d.belong_to = :id')
-            ->setParameter('id', $id)
-            ->getQuery()
-            ->getResult();
-    }
-
-    public function deleteById(int $id)
-    {
-        return $this->createQueryBuilder('d')
-            ->delete()
-            ->where('d.id = :id')
-            ->setParameter('id', $id)
-            ->getQuery()
-            ->execute();
-    }
+    //    public function findOneBySomeField($value): ?Dir
+    //    {
+    //        return $this->createQueryBuilder('d')
+    //            ->andWhere('d.exampleField = :val')
+    //            ->setParameter('val', $value)
+    //            ->getQuery()
+    //            ->getOneOrNullResult()
+    //        ;
+    //    }
 }

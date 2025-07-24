@@ -16,37 +16,6 @@ class FileRepository extends ServiceEntityRepository
         parent::__construct($registry, File::class);
     }
 
-    public function deleteById(int $id) : void
-    {
-        $this->createQueryBuilder('f')
-            ->delete()
-            ->where('f.id = :id')
-            ->setParameter(':id', $id)
-            ->getQuery()
-            ->execute();
-    }
-
-    public function findById(int $id) : ?File
-    {
-        return $this->createQueryBuilder('f')
-            ->where('f.id = :id')
-            ->setParameter(':id', $id)
-            ->getQuery()
-            ->getOneOrNullResult();
-    }
-
-
-    public function findContextById(int $id): string
-    {
-        return $this->createQueryBuilder('f')
-            ->select('d.context')
-            ->join('f.belong_to', 'd')
-            ->andWhere('f.id = :id')
-            ->setParameter('id', $id)
-            ->getQuery()
-            ->getResult();
-    }
-
     //    /**
     //     * @return File[] Returns an array of File objects
     //     */

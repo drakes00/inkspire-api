@@ -4,41 +4,30 @@ namespace App\Entity;
 
 use App\Repository\FileRepository;
 use Doctrine\ORM\Mapping as ORM;
-use Doctrine\ORM\Mapping\JoinColumn;
-use Doctrine\ORM\Mapping\ManyToOne;
 
 #[ORM\Entity(repositoryClass: FileRepository::class)]
 class File
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
-    #[ORM\Column(unique: true, nullable: false)]
-    private int $id;
+    #[ORM\Column]
+    private ?int $id = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(length: 255)]
     private ?string $name = null;
 
-    #[ORM\Column(length: 100000, nullable: true)]
-    private ?string $content = null;
+    #[ORM\Column(length: 255)]
+    private ?string $path = null;
 
-    #[ManyToOne(targetEntity: User::class, fetch: "EAGER")]
-    #[ORM\JoinColumn(name: 'login', referencedColumnName: 'login', nullable: false)]
-    private User $login;
+    #[ORM\ManyToOne(inversedBy: 'files')]
+    private ?Dir $dir = null;
 
-    #[ManyToOne(targetEntity: Dir::class, fetch: "EAGER")]
-    #[ORM\JoinColumn(name: 'dir_id', referencedColumnName: 'id', nullable: true)]
-    private Dir|null $belong_to = null;
+    #[ORM\ManyToOne(inversedBy: 'files')]
+    private ?User $user = null;
 
     public function getId(): ?int
     {
         return $this->id;
-    }
-
-    public function setId(int $id): static
-    {
-        $this->id = $id;
-
-        return $this;
     }
 
     public function getName(): ?string
@@ -46,56 +35,46 @@ class File
         return $this->name;
     }
 
-    public function setName(?string $name): static
+    public function setName(string $name): static
     {
         $this->name = $name;
 
         return $this;
     }
 
-    public function getContent(): ?string
+    public function getPath(): ?string
     {
-        return $this->content;
+        return $this->path;
     }
 
-    public function setContent(?string $content): static
+    public function setPath(string $path): static
     {
-        $this->content = $content;
+        $this->path = $path;
 
         return $this;
     }
 
-    public function getLogin(): User
+    public function getDir(): ?Dir
     {
-        return $this->login;
+        return $this->dir;
     }
 
-    public function setLogin(User $login): static
+    public function setDir(?Dir $dir): static
     {
-        $this->login = $login;
+        $this->dir = $dir;
 
         return $this;
     }
 
-    public function getIdDir(): ?int
+    public function getUser(): ?User
     {
-        return $this->id_dir;
+        return $this->user;
     }
 
-    public function setIdDir(?int $id_dir): static
+    public function setUser(?User $user): static
     {
-        $this->id_dir = $id_dir;
+        $this->user = $user;
 
         return $this;
-    }
-
-    public function getBelongTo(): ?Dir
-    {
-        return $this->belong_to;
-    }
-
-    public function setBelongTo(?Dir $belong_to): void
-    {
-        $this->belong_to = $belong_to;
     }
 }

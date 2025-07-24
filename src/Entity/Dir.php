@@ -3,43 +3,43 @@
 namespace App\Entity;
 
 use App\Repository\DirRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Doctrine\ORM\Mapping\ManyToOne;
-use phpDocumentor\Reflection\Types\This;
 
 #[ORM\Entity(repositoryClass: DirRepository::class)]
 class Dir
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
-    #[ORM\Column(unique: true, nullable: false)]
-    private int $id;
+    #[ORM\Column]
+    private ?int $id = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(length: 255)]
     private ?string $name = null;
 
-    #[ORM\Column(length: 550, nullable: true)]
-    private ?string $context = null;
+    #[ORM\ManyToOne(inversedBy: 'dirs')]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?User $user = null;
 
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $summary = null;
 
-    #[ManyToOne(targetEntity: Dir::class)]
-    #[ORM\JoinColumn(name: 'dir_id', referencedColumnName: 'id', nullable: true)]
-    private Dir|null $belong_to = null;
+    /**
+     * @var Collection<int, File>
+     */
+    #[ORM\OneToMany(targetEntity: File::class, mappedBy: 'dir')]
+    private Collection $files;
 
-    #[ManyToOne(targetEntity: User::class)]
-    #[ORM\JoinColumn(name: 'login', referencedColumnName: 'login', nullable: false)]
-    private User $login;
+    public function __construct()
+    {
+        $this->files = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
         return $this->id;
-    }
-
-    public function setId(int $id): static
-    {
-        $this->id = $id;
-
-        return $this;
     }
 
     public function getName(): ?string
@@ -47,45 +47,63 @@ class Dir
         return $this->name;
     }
 
-    public function setName(?string $name): static
+    public function setName(string $name): static
     {
         $this->name = $name;
 
         return $this;
     }
 
-    public function getContext(): ?string
+    public function getUser(): ?User
     {
-        return $this->context;
+        return $this->user;
     }
 
-    public function setContext(?string $context): static
+    public function setUser(?User $user): static
     {
-        $this->context = $context;
+        $this->user = $user;
 
         return $this;
     }
 
-    public function getLogin(): User
+    public function getSummary(): ?string
     {
-        return $this->login;
+        return $this->summary;
     }
 
-    public function setLogin(User $login): static
+    public function setSummary(?string $summary): static
     {
-        $this->login = $login;
+        $this->summary = $summary;
 
         return $this;
     }
 
-    public function getBelongTo(): ?Dir
+    /**
+     * @return Collection<int, File>
+     */
+    public function getFiles(): Collection
     {
-        return $this->belong_to;
+        return $this->files;
     }
 
-    public function setBelongTo(?Dir $belong_to): static
+    public function addFile(File $file): static
     {
-        $this->belong_to = $belong_to;
+        if (!$this->files->contains($file)) {
+            $this->files->add($file);
+            $file->setDir($this);
+        }
+
+        return $this;
+    }
+
+    public function removeFile(File $file): static
+    {
+        if ($this->files->removeElement($file)) {
+            // set the owning side to null (unless already changed)
+            if ($file->getDir() === $this) {
+                $file->setDir(null);
+            }
+        }
 
         return $this;
     }
