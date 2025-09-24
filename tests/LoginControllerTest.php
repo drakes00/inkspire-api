@@ -3,6 +3,7 @@
 namespace App\Tests;
 
 use App\Entity\User;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -10,74 +11,65 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 class LoginControllerTest extends WebTestCase
 {
     private KernelBrowser $client;
+    private ?EntityManagerInterface $entityManager;
+
+    private $email = 'test@example.com';
+    private $password = 'password';
 
     protected function setUp(): void
     {
         $this->client = static::createClient();
         $container = static::getContainer();
-        $em = $container->get('doctrine.orm.entity_manager');
-        $userRepository = $em->getRepository(User::class);
+        $this->entityManager = $container->get('doctrine.orm.entity_manager');
 
-        // Remove any existing users from the test database
-        foreach ($userRepository->findAll() as $user) {
-            $em->remove($user);
-        }
+        // Clean up the database before each test
+        $this->entityManager->createQuery('DELETE FROM App\\Entity\\User')->execute();
 
-        $em->flush();
-
-        // Create a User fixture
         /** @var UserPasswordHasherInterface $passwordHasher */
         $passwordHasher = $container->get('security.user_password_hasher');
 
-        $user = (new User())->setEmail('email@example.com');
-        $user->setPassword($passwordHasher->hashPassword($user, 'password'));
+        $user = (new User())->setEmail($this->email);
+        $user->setPassword($passwordHasher->hashPassword($user, $this->password));
 
-        $em->persist($user);
-        $em->flush();
+        $this->entityManager->persist($user);
+        $this->entityManager->flush();
     }
 
     public function testLogin(): void
     {
         // Denied - Can't login with invalid email address.
-        $this->client->request('GET', '/login');
-        self::assertResponseIsSuccessful();
-
-        $this->client->submitForm('Sign in', [
-            '_username' => 'doesNotExist@example.com',
-            '_password' => 'password',
+        $this->client->jsonRequest('POST', '/auth', [
+            'username' => 'doesNotExist@example.com',
+            'password' => 'password',
         ]);
-
-        self::assertResponseRedirects('/login');
-        $this->client->followRedirect();
-
-        // Ensure we do not reveal if the user exists or not.
-        self::assertSelectorTextContains('.alert-danger', 'Invalid credentials.');
+        $this->assertResponseStatusCodeSame(401);
 
         // Denied - Can't login with invalid password.
-        $this->client->request('GET', '/login');
-        self::assertResponseIsSuccessful();
-
-        $this->client->submitForm('Sign in', [
-            '_username' => 'email@example.com',
-            '_password' => 'bad-password',
+        $this->client->jsonRequest('POST', '/auth', [
+            'username' => $this->email,
+            'password' => 'bad-password',
         ]);
-
-        self::assertResponseRedirects('/login');
-        $this->client->followRedirect();
-
-        // Ensure we do not reveal the user exists but the password is wrong.
-        self::assertSelectorTextContains('.alert-danger', 'Invalid credentials.');
+        $this->assertResponseStatusCodeSame(401);
 
         // Success - Login with valid credentials is allowed.
-        $this->client->submitForm('Sign in', [
-            '_username' => 'email@example.com',
-            '_password' => 'password',
+        $this->client->jsonRequest('POST', '/auth', [
+            'username' => $this->email,
+            'password' => $this->password,
         ]);
+        $this->assertResponseIsSuccessful();
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('token', $data);
+    }
 
-        self::assertResponseRedirects('/');
-        $this->client->followRedirect();
+    protected function tearDown(): void
+    {
+        parent::tearDown();
 
-        self::assertSelectorNotExists('.alert-danger');
-        self::assertResponseIsSuccessful();
+        // Clean up the database after each test
+        $this->entityManager->createQuery('DELETE FROM App\\Entity\\User')->execute();
+
+        // doing this is recommended to avoid memory leaks
+        $this->entityManager->close();
+        $this->entityManager = null;
     }
 }
