@@ -16,8 +16,8 @@ class FilesControllerTest extends WebTestCase
     private KernelBrowser $client;
     private ?EntityManagerInterface $entityManager;
 
-    private $email = 'test@example.com';
-    private $password = 'password';
+    private string $email = 'test@example.com';
+    private string $password = 'password';
 
 
     /**
