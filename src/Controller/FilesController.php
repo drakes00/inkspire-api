@@ -254,4 +254,124 @@ class FilesController extends AbstractController
             'summary' => $dir->getSummary(),
         ], Response::HTTP_CREATED);
     }
+
+    /**
+     * Updates an existing file.
+     *
+     * @param User|null $user The current user.
+     * @param Request $request The request object.
+     * @param File $file The file entity to update.
+     * @param FileRepository $fileRepository The file repository.
+     * @param DirRepository $dirRepository The directory repository.
+     * @param EntityManagerInterface $entityManager The entity manager.
+     * @return Response The JSON response.
+     */
+    #[Route('/file/{id}', name: 'file_update', methods: ['PUT'])]
+    public function file_update(
+        #[CurrentUser] ?User $user,
+        Request $request,
+        File $file,
+        FileRepository $fileRepository,
+        DirRepository $dirRepository,
+        EntityManagerInterface $entityManager
+    ): Response {
+        // Check if the user is authenticated.
+        if (null === $user) {
+            return $this->json(['message' => 'missing credentials'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        // Check if the user has access to the file.
+        if ($file->getUser() !== $user) {
+            return $this->json([
+                'message' => 'You do not have access to this file',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        // Decode the request content.
+        $data = json_decode($request->getContent(), true);
+
+        // Update file properties if provided in the request.
+        if (array_key_exists('name', $data) && $data['name'] !== $file->getName()) {
+            $existingFile = $fileRepository->findOneBy(['user' => $user, 'name' => $data['name']]);
+            if ($existingFile) {
+                return $this->json(['message' => 'File name already exists'], Response::HTTP_CONFLICT);
+            }
+            $file->setName($data['name']);
+        }
+        if (array_key_exists('dir', $data)) {
+            $dir = null;
+            if ($data['dir'] !== null) {
+                $dir = $dirRepository->findOneBy(['user' => $user, 'id' => $data['dir']]);
+                if (!$dir) {
+                    return $this->json(['message' => 'Directory not found'], Response::HTTP_BAD_REQUEST);
+                }
+            }
+            $file->setDir($dir);
+        }
+
+        $entityManager->flush();
+
+        // Return the updated file's information.
+        return $this->json([
+            'id' => $file->getId(),
+            'name' => $file->getName(),
+            'path' => $file->getPath(),
+            'dir' => $file->getDir() ? $file->getDir()->getId() : null,
+        ]);
+    }
+
+    /**
+     * Updates an existing directory.
+     *
+     * @param User|null $user The current user.
+     * @param Request $request The request object.
+     * @param Dir $dir The directory entity to update.
+     * @param DirRepository $dirRepository The directory repository.
+     * @param EntityManagerInterface $entityManager The entity manager.
+     * @return Response The JSON response.
+     */
+    #[Route('/dir/{id}', name: 'dir_update', methods: ['PUT'])]
+    public function dir_update(
+        #[CurrentUser] ?User $user,
+        Request $request,
+        Dir $dir,
+        DirRepository $dirRepository,
+        EntityManagerInterface $entityManager
+    ): Response {
+        // Check if the user is authenticated.
+        if (null === $user) {
+            return $this->json(['message' => 'missing credentials'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        // Check if the user has access to the directory.
+        if ($dir->getUser() !== $user) {
+            return $this->json([
+                'message' => 'You do not have access to this directory',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        // Decode the request content.
+        $data = json_decode($request->getContent(), true);
+
+        // Update directory properties if provided in the request.
+        if (array_key_exists('name', $data) && $data['name'] !== $dir->getName()) {
+            $existingDir = $dirRepository->findOneBy(['user' => $user, 'name' => $data['name']]);
+            if ($existingDir) {
+                return $this->json(['message' => 'Directory name already exists'], Response::HTTP_CONFLICT);
+            }
+            $dir->setName($data['name']);
+        }
+        if (array_key_exists('summary', $data)) {
+            $dir->setSummary($data['summary']);
+        }
+
+        $entityManager->flush();
+
+        // Return the updated directory's information.
+        return $this->json([
+            'id' => $dir->getId(),
+            'name' => $dir->getName(),
+            'summary' => $dir->getSummary(),
+        ]);
+    }
 }
