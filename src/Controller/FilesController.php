@@ -7,6 +7,7 @@ use App\Entity\User;
 use App\Entity\File;
 use App\Repository\DirRepository;
 use App\Repository\FileRepository;
+use App\Service\FilePathGenerator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -20,6 +21,10 @@ use Symfony\Component\Security\Http\Attribute\CurrentUser;
 #[Route('/api', name: 'app_api')]
 class FilesController extends AbstractController
 {
+    public function __construct(private readonly FilePathGenerator $filePathGenerator)
+    {
+    }
+
     /**
      * Retrieves the file and directory tree for the authenticated user.
      *
@@ -188,7 +193,7 @@ class FilesController extends AbstractController
         $file = new File();
         $file->setUser($user);
         $file->setName($name);
-        $file->setPath(''); // As requested, leave the path blank.
+        $file->setPath($this->filePathGenerator->generate());
         if ($dir !== null) {
             $file->setDir($dir);
         }
