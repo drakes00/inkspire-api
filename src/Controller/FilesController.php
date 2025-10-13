@@ -49,10 +49,9 @@ class FilesController extends AbstractController
         foreach ($files as $file) {
             // Check if the file belongs to a directory or is stray.
             if ($file->getDir() === null) {
-                // Store the name and path of each file in the resultFiles array.
+                // Store the name of each file in the resultFiles array.
                 $resultFiles[$file->getID()] = [
                     "name" => $file->getName(),
-                    "path" => $file->getPath(),
                 ];
             }
         }
@@ -105,7 +104,6 @@ class FilesController extends AbstractController
         return $this->json([
             'id' => $file->getId(),
             'name' => $file->getName(),
-            'path' => $file->getPath(),
         ]);
     }
 
@@ -138,7 +136,6 @@ class FilesController extends AbstractController
         foreach ($dir->getFiles() as $file) {
             $files[$file->getId()] = [
                 'name' => $file->getName(),
-                'path' => $file->getPath(),
             ];
         }
 
@@ -205,7 +202,6 @@ class FilesController extends AbstractController
         return $this->json([
             'id' => $file->getId(),
             'name' => $file->getName(),
-            'path' => $file->getPath(),
             'dir' => $dir !== null ? $file->getDir()->getId() : null,
         ], Response::HTTP_CREATED);
     }
@@ -320,7 +316,6 @@ class FilesController extends AbstractController
         return $this->json([
             'id' => $file->getId(),
             'name' => $file->getName(),
-            'path' => $file->getPath(),
             'dir' => $file->getDir() ? $file->getDir()->getId() : null,
         ]);
     }
