@@ -177,6 +177,9 @@ class FilesController extends AbstractController
         $dir = null;
         if (array_key_exists('dir', $data) and $data['dir'] !== null) {
             $dir = $dirRepository->findOneBy(['user' => $user, 'id' => $data['dir']]);
+            if (!$dir) {
+                return $this->json(['message' => 'Unauthorized directory'], Response::HTTP_FORBIDDEN);
+            }
         }
 
         // Ensure the file name is unique.
