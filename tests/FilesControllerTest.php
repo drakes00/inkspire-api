@@ -8,7 +8,7 @@ use App\Entity\File;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\HttpFoundation\Response;
 
 class FilesControllerTest extends WebTestCase
 {
@@ -18,6 +18,18 @@ class FilesControllerTest extends WebTestCase
     private string $email = 'test@example.com';
     private string $password = 'password';
 
+    private ?string $token = null;
+
+    protected function deauthenticateClient(): void
+    {
+        $this->client->setServerParameter('HTTP_Authorization', '');
+    }
+
+    protected function authenticateClient(): void
+    {
+        $this->client->setServerParameter('HTTP_Authorization', 'Bearer ' . $this->token);
+    }
+
     protected function createAuthenticatedClient($client, string $email, string $password)
     {
         $client->jsonRequest('POST', '/auth', [
@@ -26,7 +38,8 @@ class FilesControllerTest extends WebTestCase
         ]);
 
         $data = json_decode($client->getResponse()->getContent(), true);
-        $client->setServerParameter('HTTP_Authorization', sprintf('Bearer %s', $data['token']));
+        $this->token = $data['token'];
+        $this->authenticateClient();
 
         return $client;
     }
@@ -94,6 +107,7 @@ class FilesControllerTest extends WebTestCase
 
         $this->client->request('GET', '/api/tree');
         $this->assertResponseIsSuccessful();
+        $this->assertResponseStatusCodeSame(Response::HTTP_OK);
         $response = json_decode($this->client->getResponse()->getContent(), true);
 
         // Assert that the user is correct
@@ -154,6 +168,7 @@ class FilesControllerTest extends WebTestCase
 
         $this->client->request('GET', '/api/file/' . $fileId);
         $this->assertResponseIsSuccessful();
+        $this->assertResponseStatusCodeSame(Response::HTTP_OK);
         $response = json_decode($this->client->getResponse()->getContent(), true);
 
         $this->assertEquals('Test File Info', $response['name']);
@@ -195,6 +210,7 @@ class FilesControllerTest extends WebTestCase
 
         $this->client->request('GET', '/api/dir/' . $dirId);
         $this->assertResponseIsSuccessful();
+        $this->assertResponseStatusCodeSame(Response::HTTP_OK);
         $response = json_decode($this->client->getResponse()->getContent(), true);
 
         $this->assertEquals('Another Test Dir', $response['name']);
@@ -232,6 +248,7 @@ class FilesControllerTest extends WebTestCase
             'summary' => 'Awesome summary',
         ]);
         $this->assertResponseIsSuccessful();
+        $this->assertResponseStatusCodeSame(Response::HTTP_CREATED);
         $dirResponse = json_decode($this->client->getResponse()->getContent(), true);
         $this->assertArrayHasKey('id', $dirResponse);
         $this->assertEquals('My Test Directory', $dirResponse['name']);
@@ -253,6 +270,7 @@ class FilesControllerTest extends WebTestCase
             'name' => 'My Test File',
         ]);
         $this->assertResponseIsSuccessful();
+        $this->assertResponseStatusCodeSame(Response::HTTP_CREATED);
         $fileResponse = json_decode($this->client->getResponse()->getContent(), true);
         $this->assertArrayHasKey('id', $fileResponse);
         $this->assertEquals('My Test File', $fileResponse['name']);
@@ -276,6 +294,7 @@ class FilesControllerTest extends WebTestCase
             'dir' => $dirId,
         ]);
         $this->assertResponseIsSuccessful();
+        $this->assertResponseStatusCodeSame(Response::HTTP_CREATED);
         $fileResponse = json_decode($this->client->getResponse()->getContent(), true);
         $this->assertArrayHasKey('id', $fileResponse);
         $this->assertEquals('My Other Test File', $fileResponse['name']);
@@ -316,6 +335,7 @@ class FilesControllerTest extends WebTestCase
 
         $this->client->jsonRequest('POST', '/api/file', ['name' => 'Duplicate Name']);
         $this->assertResponseIsSuccessful();
+        $this->assertResponseStatusCodeSame(Response::HTTP_CREATED);
         $response = json_decode($this->client->getResponse()->getContent(), true);
         $this->assertEquals('Duplicate Name (1)', $response['name']);
 
@@ -332,6 +352,7 @@ class FilesControllerTest extends WebTestCase
 
         $this->client->jsonRequest('POST', '/api/dir', ['name' => 'Duplicate Name']);
         $this->assertResponseIsSuccessful();
+        $this->assertResponseStatusCodeSame(Response::HTTP_CREATED);
         $response = json_decode($this->client->getResponse()->getContent(), true);
         $this->assertEquals('Duplicate Name (1)', $response['name']);
 
@@ -363,7 +384,7 @@ class FilesControllerTest extends WebTestCase
         $fileId = $file->getId();
 
         $this->client->request('GET', '/api/file/' . $fileId);
-        $this->assertResponseStatusCodeSame(403);
+        $this->assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
 
         // Verify file still belongs to user2 in database
         $this->entityManager->clear();
@@ -488,7 +509,7 @@ class FilesControllerTest extends WebTestCase
         $this->client->jsonRequest('PUT', '/api/file/' . $fileId, [
             'name' => 'Existing Name',
         ]);
-        $this->assertResponseStatusCodeSame(409);
+        $this->assertResponseStatusCodeSame(Response::HTTP_CONFLICT);
 
         // Verify file name was NOT changed in database
         $this->entityManager->clear();
@@ -519,7 +540,7 @@ class FilesControllerTest extends WebTestCase
         $this->client->jsonRequest('PUT', '/api/file/' . $fileId, [
             'dir' => 9999,
         ]);
-        $this->assertResponseStatusCodeSame(400);
+        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
 
         // Verify file directory was NOT changed in database
         $this->entityManager->clear();
@@ -554,7 +575,7 @@ class FilesControllerTest extends WebTestCase
         $this->client->jsonRequest('PUT', '/api/file/' . $fileId, [
             'name' => 'Trying to steal user2 file',
         ]);
-        $this->assertResponseStatusCodeSame(403);
+        $this->assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
 
         // Verify file was NOT modified in database
         $this->entityManager->clear();
@@ -587,7 +608,7 @@ class FilesControllerTest extends WebTestCase
             'name' => 'Sneaky File',
             'dir' => $user2Dir->getId(),
         ]);
-        $this->assertResponseStatusCodeSame(403);
+        $this->assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
 
         // Verify no file was created with this name in database
         $this->entityManager->clear();
@@ -718,7 +739,7 @@ class FilesControllerTest extends WebTestCase
         $this->client->jsonRequest('PUT', '/api/dir/' . $dir1->getId(), [
             'name' => 'Existing Dir Name',
         ]);
-        $this->assertResponseStatusCodeSame(409);
+        $this->assertResponseStatusCodeSame(Response::HTTP_CONFLICT);
 
         // Verify directory was NOT changed in database
         $this->entityManager->clear();
@@ -750,7 +771,7 @@ class FilesControllerTest extends WebTestCase
         $this->client->jsonRequest('PUT', '/api/dir/' . $user2Dir->getId(), [
             'name' => 'Trying to steal user2 dir',
         ]);
-        $this->assertResponseStatusCodeSame(403);
+        $this->assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
 
         // Verify directory was NOT modified in database
         $this->entityManager->clear();
@@ -761,6 +782,151 @@ class FilesControllerTest extends WebTestCase
         $this->assertEquals('Belongs to user2', $unchangedDir->getSummary());
         $this->assertEquals('user2-dir-update@example.com', $unchangedDir->getUser()->getEmail());
     }
+
+    public function test_18_deleteFile_success(): void
+    {
+        // Retrieve the authenticated user created in setUp()
+        $userRepository = $this->entityManager->getRepository(User::class);
+        $user = $userRepository->findOneBy(['email' => $this->email]);
+
+        // Create a file owned by the authenticated user
+        $file = new File();
+        $file->setUser($user);
+        $file->setName('ToDelete.md');
+        $file->setPath('/to-delete.md');
+        $this->entityManager->persist($file);
+        $this->entityManager->flush();
+
+        // Attempt deletion through API
+        $this->client->request('DELETE', '/api/file/' . $file->getId());
+
+        // Expect 204 No Content on success
+        $this->assertResponseStatusCodeSame(Response::HTTP_NO_CONTENT);
+
+        // Verify the file no longer exists in the database
+        $deleted = $this->entityManager->getRepository(File::class)->find($file->getId());
+        $this->assertNull($deleted);
+    }
+
+    public function test_19_deleteFile_forbidden(): void
+    {
+        // Create a second user
+        $user2 = $this->createUser('user2@example.com', 'password2');
+        $this->entityManager->persist($user2);
+        $this->entityManager->flush();
+
+        // Create a file owned by that second user
+        $foreignFile = new File();
+        $foreignFile->setUser($user2);
+        $foreignFile->setName('OtherUserFile.md');
+        $foreignFile->setPath('/other-user-file.md');
+        $this->entityManager->persist($foreignFile);
+        $this->entityManager->flush();
+
+        // Attempt deletion using user1's credentials
+        $this->client->request('DELETE', '/api/file/' . $foreignFile->getId());
+
+        // Expect 403 Forbidden
+        $this->assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
+
+        // The file must still exist in the database
+        $stillExists = $this->entityManager->getRepository(File::class)->find($foreignFile->getId());
+        $this->assertNotNull($stillExists);
+    }
+
+    public function test_20_deleteFile_unauthorized(): void
+    {
+        // Create a standalone user and file
+        $user = $this->createUser('unauth@example.com', 'pw');
+        $this->entityManager->persist($user);
+        $this->entityManager->flush();
+
+        $file = new File();
+        $file->setUser($user);
+        $file->setName('UnauthorizedDelete.md');
+        $file->setPath('/unauth-delete.md');
+        $this->entityManager->persist($file);
+        $this->entityManager->flush();
+
+        // Create an unauthenticated client (no token)
+        $this->deauthenticateClient();
+        $this->client->request('DELETE', '/api/file/' . $file->getId());
+
+        // Expect 401 Unauthorized
+        $this->assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
+    }
+
+    public function test_21_deleteDir_success(): void
+    {
+        $userRepository = $this->entityManager->getRepository(User::class);
+        $user = $userRepository->findOneBy(['email' => $this->email]);
+
+        // Create a directory owned by the authenticated user
+        $dir = new Dir();
+        $dir->setUser($user);
+        $dir->setName('DeleteDir');
+        $dir->setSummary('Directory to delete');
+        $this->entityManager->persist($dir);
+        $this->entityManager->flush();
+
+        // Attempt deletion through API
+        $this->client->request('DELETE', '/api/dir/' . $dir->getId());
+
+        // Expect 204 No Content on success
+        $this->assertResponseStatusCodeSame(Response::HTTP_NO_CONTENT);
+
+        // Verify the directory no longer exists in the database
+        $deleted = $this->entityManager->getRepository(Dir::class)->find($dir->getId());
+        $this->assertNull($deleted);
+    }
+
+    public function test_22_deleteDir_forbidden(): void
+    {
+        // Create a second user and their directory
+        $user2 = $this->createUser('user2@example.com', 'password2');
+        $this->entityManager->persist($user2);
+        $this->entityManager->flush();
+
+        $foreignDir = new Dir();
+        $foreignDir->setUser($user2);
+        $foreignDir->setName('OtherUserDir');
+        $foreignDir->setSummary('Not owned by current user');
+        $this->entityManager->persist($foreignDir);
+        $this->entityManager->flush();
+
+        // Attempt deletion using user1's credentials
+        $this->client->request('DELETE', '/api/dir/' . $foreignDir->getId());
+
+        // Expect 403 Forbidden
+        $this->assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
+
+        // Directory must still exist
+        $stillExists = $this->entityManager->getRepository(Dir::class)->find($foreignDir->getId());
+        $this->assertNotNull($stillExists);
+    }
+
+    public function test_23_deleteDir_unauthorized(): void
+    {
+        // Create a standalone user and directory
+        $user = $this->createUser('unauth@example.com', 'pw');
+        $this->entityManager->persist($user);
+        $this->entityManager->flush();
+
+        $dir = new Dir();
+        $dir->setUser($user);
+        $dir->setName('UnauthorizedDir');
+        $dir->setSummary('Unauthorized deletion attempt');
+        $this->entityManager->persist($dir);
+        $this->entityManager->flush();
+
+        // Create an unauthenticated client (no token)
+        $this->deauthenticateClient();
+        $this->client->request('DELETE', '/api/dir/' . $dir->getId());
+
+        // Expect 401 Unauthorized
+        $this->assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
+    }
+
 
     protected function tearDown(): void
     {

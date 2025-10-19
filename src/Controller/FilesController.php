@@ -377,4 +377,71 @@ class FilesController extends AbstractController
             'summary' => $dir->getSummary(),
         ]);
     }
+
+    /**
+     * Deletes an existing file.
+     *
+     * @param User|null $user The current user.
+     * @param File $file The file entity to delete.
+     * @param EntityManagerInterface $entityManager The entity manager.
+     * @return Response The JSON response.
+     */
+    #[Route('/file/{id}', name: 'file_delete', methods: ['DELETE'])]
+    public function file_delete(
+        #[CurrentUser] ?User $user,
+        File $file,
+        EntityManagerInterface $entityManager
+    ): Response {
+        // Check if the user is authenticated.
+        if (null === $user) {
+            return $this->json(['message' => 'missing credentials'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        // Check if the user has access to the file.
+        if ($file->getUser() !== $user) {
+            return $this->json([
+                'message' => 'You do not have access to this file',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        $entityManager->remove($file);
+        $entityManager->flush();
+
+        return $this->json(null, Response::HTTP_NO_CONTENT);
+    }
+
+    /**
+     * Deletes an existing directory.
+     *
+     * @param User|null $user The current user.
+     * @param Dir $dir The directory entity to delete.
+     * @param EntityManagerInterface $entityManager The entity manager.
+     * @return Response The JSON response.
+     */
+    #[Route('/dir/{id}', name: 'dir_delete', methods: ['DELETE'])]
+    public function dir_delete(
+        #[CurrentUser] ?User $user,
+        Dir $dir,
+        EntityManagerInterface $entityManager
+    ): Response {
+        // Check if the user is authenticated.
+        if (null === $user) {
+            return $this->json(['message' => 'missing credentials'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        // Check if the user has access to the directory.
+        if ($dir->getUser() !== $user) {
+            return $this->json([
+                'message' => 'You do not have access to this directory',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        // TODO: Implement logic to handle files within the directory (e.g., move to root, delete them).
+        // For now, assuming cascade delete is configured or files will be handled separately.
+
+        $entityManager->remove($dir);
+        $entityManager->flush();
+
+        return $this->json(null, Response::HTTP_NO_CONTENT);
+    }
 }
