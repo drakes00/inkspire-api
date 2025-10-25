@@ -50,7 +50,7 @@ class FilesController extends AbstractController
             // Check if the file belongs to a directory or is stray.
             if ($file->getDir() === null) {
                 // Store the name of each file in the resultFiles array.
-                $resultFiles[$file->getID()] = [
+                $resultFiles[$file->getId()] = [
                     "name" => $file->getName(),
                 ];
             }
@@ -62,7 +62,7 @@ class FilesController extends AbstractController
         $dirs = $user->getDirs();
         foreach ($dirs as $dir) {
             // Store the name and summary of each directory in the resultDirs array.
-            $resultDirs[$dir->getID()] = [
+            $resultDirs[$dir->getId()] = [
                 "name" => $dir->getName(),
                 "summary" => $dir->getSummary(),
             ];
@@ -193,10 +193,13 @@ class FilesController extends AbstractController
         $file = new File();
         $file->setUser($user);
         $file->setName($name);
-        $file->setPath($this->filePathGenerator->generate());
+        $path = $this->filePathGenerator->generate($name);
+        $file->setPath($path);
         if ($dir !== null) {
             $file->setDir($dir);
         }
+
+        file_put_contents($path, '');
 
         $entityManager->persist($file);
         $entityManager->flush();
@@ -300,7 +303,16 @@ class FilesController extends AbstractController
             if ($existingFile) {
                 return $this->json(['message' => 'File name already exists'], Response::HTTP_CONFLICT);
             }
-            $file->setName($data['name']);
+            $oldPath = $file->getPath();
+            $newName = $data['name'];
+            $newPath = $this->filePathGenerator->generate($newName);
+
+            if (file_exists($oldPath)) {
+                rename($oldPath, $newPath);
+            }
+
+            $file->setName($newName);
+            $file->setPath($newPath);
         }
         if (array_key_exists('dir', $data)) {
             $dir = null;
@@ -402,6 +414,11 @@ class FilesController extends AbstractController
             return $this->json([
                 'message' => 'You do not have access to this file',
             ], Response::HTTP_FORBIDDEN);
+        }
+
+        // Delete the file from disk
+        if (file_exists($file->getPath())) {
+            unlink($file->getPath());
         }
 
         $entityManager->remove($file);

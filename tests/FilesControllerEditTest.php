@@ -5,6 +5,7 @@ namespace App\Tests;
 use App\Entity\User;
 use App\Entity\Dir;
 use App\Entity\File;
+use App\Service\FilePathGenerator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -14,6 +15,7 @@ class FilesControllerEditTest extends WebTestCase
 {
     private KernelBrowser $client;
     private ?EntityManagerInterface $entityManager;
+    private FilePathGenerator $filePathGenerator;
 
     private string $email = 'test@example.com';
     private string $password = 'password';
@@ -48,6 +50,7 @@ class FilesControllerEditTest extends WebTestCase
     {
         $container = static::getContainer();
         $passwordHasher = $container->get('security.user_password_hasher');
+        $this->filePathGenerator = $container->get(FilePathGenerator::class);
 
         $user = (new User())->setEmail($email);
         $user->setPassword($passwordHasher->hashPassword($user, $password));
@@ -80,7 +83,10 @@ class FilesControllerEditTest extends WebTestCase
         $file = new File();
         $file->setUser($user);
         $file->setName('Update Test File');
-        $file->setPath('/update-test-file.md');
+        $originalPath = $this->filePathGenerator->generate('Update Test File');
+        $file->setPath($originalPath);
+        touch($originalPath);
+        $this->assertFileExists($originalPath);
         $this->entityManager->persist($file);
         $this->entityManager->flush();
 
@@ -100,7 +106,11 @@ class FilesControllerEditTest extends WebTestCase
         $updatedFile = $fileRepository->find($fileId);
         $this->assertNotNull($updatedFile);
         $this->assertEquals('Updated File Name', $updatedFile->getName());
-        $this->assertEquals('/update-test-file.md', $updatedFile->getPath());
+        $expectedNewPath = $this->filePathGenerator->generate('Updated File Name');
+        $this->assertEquals($expectedNewPath, $updatedFile->getPath());
+        $this->assertFileDoesNotExist($originalPath);
+        $this->assertFileExists($expectedNewPath);
+        $this->assertEquals(preg_match("/^[a-z]+(-[a-z]+)*(-[0-9]+)?\\.ink$/i", basename($updatedFile->getPath())), 1);
         $this->assertNull($updatedFile->getDir());
         $this->assertEquals($this->email, $updatedFile->getUser()->getEmail());
     }
@@ -118,7 +128,10 @@ class FilesControllerEditTest extends WebTestCase
         $file = new File();
         $file->setUser($user);
         $file->setName('Move Test File');
-        $file->setPath('/move-test-file.md');
+        $path = $this->filePathGenerator->generate('Move Test File');
+        $file->setPath($path);
+        touch($path);
+        $this->assertFileExists($path);
         $this->entityManager->persist($file);
         $this->entityManager->flush();
 
@@ -139,7 +152,8 @@ class FilesControllerEditTest extends WebTestCase
         $movedFile = $fileRepository->find($fileId);
         $this->assertNotNull($movedFile);
         $this->assertEquals('Move Test File', $movedFile->getName());
-        $this->assertEquals('/move-test-file.md', $movedFile->getPath());
+        $this->assertEquals($path, $movedFile->getPath());
+        $this->assertFileExists($path);
         $this->assertNotNull($movedFile->getDir());
         $this->assertEquals($dirId, $movedFile->getDir()->getId());
         $this->assertEquals($this->email, $movedFile->getUser()->getEmail());
@@ -157,7 +171,8 @@ class FilesControllerEditTest extends WebTestCase
         $movedFile = $fileRepository->find($fileId);
         $this->assertNotNull($movedFile);
         $this->assertEquals('Move Test File', $movedFile->getName());
-        $this->assertEquals('/move-test-file.md', $movedFile->getPath());
+        $this->assertEquals($path, $movedFile->getPath());
+        $this->assertFileExists($path);
         $this->assertNull($movedFile->getDir());
         $this->assertEquals($this->email, $movedFile->getUser()->getEmail());
     }
@@ -170,13 +185,19 @@ class FilesControllerEditTest extends WebTestCase
         $file = new File();
         $file->setUser($user);
         $file->setName('Original Name');
-        $file->setPath('/original.md');
+        $originalPath = $this->filePathGenerator->generate('Original Name');
+        $file->setPath($originalPath);
+        touch($originalPath);
+        $this->assertFileExists($originalPath);
         $this->entityManager->persist($file);
 
         $otherFile = new File();
         $otherFile->setUser($user);
         $otherFile->setName('Existing Name');
-        $otherFile->setPath('/existing-name.md');
+        $existingPath = $this->filePathGenerator->generate('Existing Name');
+        $otherFile->setPath($existingPath);
+        touch($existingPath);
+        $this->assertFileExists($existingPath);
         $this->entityManager->persist($otherFile);
         $this->entityManager->flush();
 
@@ -194,7 +215,9 @@ class FilesControllerEditTest extends WebTestCase
         $unchangedFile = $fileRepository->find($fileId);
         $this->assertNotNull($unchangedFile);
         $this->assertEquals('Original Name', $unchangedFile->getName());
-        $this->assertEquals('/original.md', $unchangedFile->getPath());
+        $this->assertEquals($originalPath, $unchangedFile->getPath());
+        $this->assertFileExists($originalPath);
+        $this->assertFileExists($existingPath);
         $this->assertNull($unchangedFile->getDir());
         $this->assertEquals($this->email, $unchangedFile->getUser()->getEmail());
     }
@@ -207,7 +230,10 @@ class FilesControllerEditTest extends WebTestCase
         $file = new File();
         $file->setUser($user);
         $file->setName('Test File');
-        $file->setPath('/test-file.md');
+        $path = $this->filePathGenerator->generate('Test File');
+        $file->setPath($path);
+        touch($path);
+        $this->assertFileExists($path);
         $this->entityManager->persist($file);
         $this->entityManager->flush();
 
@@ -225,7 +251,8 @@ class FilesControllerEditTest extends WebTestCase
         $unchangedFile = $fileRepository->find($fileId);
         $this->assertNotNull($unchangedFile);
         $this->assertEquals('Test File', $unchangedFile->getName());
-        $this->assertEquals('/test-file.md', $unchangedFile->getPath());
+        $this->assertEquals($path, $unchangedFile->getPath());
+        $this->assertFileExists($path);
         $this->assertNull($unchangedFile->getDir());
         $this->assertEquals($this->email, $unchangedFile->getUser()->getEmail());
     }
@@ -242,7 +269,10 @@ class FilesControllerEditTest extends WebTestCase
         $user2File = new File();
         $user2File->setUser($user2);
         $user2File->setName('User2 File');
-        $user2File->setPath('/user2-file.md');
+        $path = $this->filePathGenerator->generate('User2 File');
+        $user2File->setPath($path);
+        touch($path);
+        $this->assertFileExists($path);
         $this->entityManager->persist($user2File);
         $this->entityManager->flush();
 
@@ -260,7 +290,8 @@ class FilesControllerEditTest extends WebTestCase
         $unchangedFile = $fileRepository->find($fileId);
         $this->assertNotNull($unchangedFile);
         $this->assertEquals('User2 File', $unchangedFile->getName());
-        $this->assertEquals('/user2-file.md', $unchangedFile->getPath());
+        $this->assertEquals($path, $unchangedFile->getPath());
+        $this->assertFileExists($path);
         $this->assertNull($unchangedFile->getDir());
         $this->assertEquals('user2-for-update@example.com', $unchangedFile->getUser()->getEmail());
     }
@@ -434,6 +465,16 @@ class FilesControllerEditTest extends WebTestCase
 
     protected function tearDown(): void
     {
+        $container = static::getContainer();
+        $projectRoot = $container->getParameter('kernel.project_dir');
+        $filesDir = $projectRoot . '/var/files';
+        $files = glob($filesDir . '/*.ink');
+        foreach ($files as $file) {
+            if (is_file($file)) {
+                unlink($file);
+            }
+        }
+
         parent::tearDown();
 
         // doing this is recommended to avoid memory leaks

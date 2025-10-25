@@ -5,6 +5,7 @@ namespace App\Tests;
 use App\Entity\User;
 use App\Entity\Dir;
 use App\Entity\File;
+use App\Service\FilePathGenerator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -14,6 +15,7 @@ class FilesControllerCreateTest extends WebTestCase
 {
     private KernelBrowser $client;
     private ?EntityManagerInterface $entityManager;
+    private FilePathGenerator $filePathGenerator;
 
     private string $email = 'test@example.com';
     private string $password = 'password';
@@ -48,6 +50,7 @@ class FilesControllerCreateTest extends WebTestCase
     {
         $container = static::getContainer();
         $passwordHasher = $container->get('security.user_password_hasher');
+        $this->filePathGenerator = $container->get(FilePathGenerator::class);
 
         $user = (new User())->setEmail($email);
         $user->setPassword($passwordHasher->hashPassword($user, $password));
@@ -116,7 +119,10 @@ class FilesControllerCreateTest extends WebTestCase
         $file = $fileRepository->find($fileId);
         $this->assertNotNull($file);
         $this->assertEquals('My Test File', $file->getName());
-        $this->assertNotEmpty($file->getPath());
+        $expectedPath = $this->filePathGenerator->generate('My Test File');
+        $this->assertEquals($expectedPath, $file->getPath());
+        $this->assertFileExists($expectedPath);
+        $this->assertEquals(preg_match("/^[a-z]+(-[a-z]+)*(-[0-9]+)?\.ink$/i", basename($file->getPath())), 1);
         $this->assertNull($file->getDir());
         $this->assertEquals($this->email, $file->getUser()->getEmail());
 
@@ -141,7 +147,10 @@ class FilesControllerCreateTest extends WebTestCase
         $fileWithDir = $fileRepository->find($fileWithDirId);
         $this->assertNotNull($fileWithDir);
         $this->assertEquals('My Other Test File', $fileWithDir->getName());
-        $this->assertNotEmpty($fileWithDir->getPath());
+        $expectedPath = $this->filePathGenerator->generate('My Other Test File');
+        $this->assertEquals($expectedPath, $fileWithDir->getPath());
+        $this->assertFileExists($expectedPath);
+        $this->assertEquals(preg_match("/^[a-z]+(-[a-z]+)*(-[0-9]+)?\.ink$/i", basename($fileWithDir->getPath())), 1);
         $this->assertNotNull($fileWithDir->getDir());
         $this->assertEquals($dirId, $fileWithDir->getDir()->getId());
         $this->assertEquals($this->email, $fileWithDir->getUser()->getEmail());
@@ -155,7 +164,9 @@ class FilesControllerCreateTest extends WebTestCase
         $file1 = new File();
         $file1->setUser($user);
         $file1->setName('Duplicate Name');
-        $file1->setPath('');
+        $path1 = $this->filePathGenerator->generate('Duplicate Name');
+        $file1->setPath($path1);
+        file_put_contents($path1, '');
         $this->entityManager->persist($file1);
 
         $dir1 = new Dir();
@@ -179,7 +190,10 @@ class FilesControllerCreateTest extends WebTestCase
         $createdFile = $fileRepository->find($createdFileId);
         $this->assertNotNull($createdFile);
         $this->assertEquals('Duplicate Name (1)', $createdFile->getName());
-        $this->assertNotEmpty($createdFile->getPath());
+        $expectedPath = $this->filePathGenerator->generate('Duplicate Name (1)');
+        $this->assertEquals($expectedPath, $createdFile->getPath());
+        $this->assertEquals(preg_match("/^[a-z]+(-[a-z]+)*(-[0-9]+)?\.ink$/i", basename($createdFile->getPath())), 1);
+        $this->assertFileExists($expectedPath);
         $this->assertEquals($this->email, $createdFile->getUser()->getEmail());
 
         $this->client->jsonRequest('POST', '/api/dir', ['name' => 'Duplicate Name']);
@@ -226,11 +240,22 @@ class FilesControllerCreateTest extends WebTestCase
         $fileRepository = $this->entityManager->getRepository(File::class);
         $sneakyFile = $fileRepository->findOneBy(['name' => 'Sneaky File']);
         $this->assertNull($sneakyFile);
+        $this->assertFileDoesNotExist($this->filePathGenerator->generate('Sneaky File'));
     }
 
 
     protected function tearDown(): void
     {
+        $container = static::getContainer();
+        $projectRoot = $container->getParameter('kernel.project_dir');
+        $filesDir = $projectRoot . '/var/files';
+        $files = glob($filesDir . '/*.ink');
+        foreach ($files as $file) {
+            if (is_file($file)) {
+                unlink($file);
+            }
+        }
+
         parent::tearDown();
 
         // doing this is recommended to avoid memory leaks

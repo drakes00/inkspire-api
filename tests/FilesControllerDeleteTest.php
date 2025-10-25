@@ -5,6 +5,7 @@ namespace App\Tests;
 use App\Entity\User;
 use App\Entity\Dir;
 use App\Entity\File;
+use App\Service\FilePathGenerator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -14,6 +15,7 @@ class FilesControllerDeleteTest extends WebTestCase
 {
     private KernelBrowser $client;
     private ?EntityManagerInterface $entityManager;
+    private FilePathGenerator $filePathGenerator;
 
     private string $email = 'test@example.com';
     private string $password = 'password';
@@ -48,6 +50,7 @@ class FilesControllerDeleteTest extends WebTestCase
     {
         $container = static::getContainer();
         $passwordHasher = $container->get('security.user_password_hasher');
+        $this->filePathGenerator = $container->get(FilePathGenerator::class);
 
         $user = (new User())->setEmail($email);
         $user->setPassword($passwordHasher->hashPassword($user, $password));
@@ -82,7 +85,11 @@ class FilesControllerDeleteTest extends WebTestCase
         $file = new File();
         $file->setUser($user);
         $file->setName('ToDelete.md');
-        $file->setPath('/to-delete.md');
+        $path = $this->filePathGenerator->generate('ToDelete.md');
+        $file->setPath($path);
+        touch($path);
+        $this->assertFileExists($path);
+
         $this->entityManager->persist($file);
         $this->entityManager->flush();
 
@@ -95,6 +102,9 @@ class FilesControllerDeleteTest extends WebTestCase
         // Verify the file no longer exists in the database
         $deleted = $this->entityManager->getRepository(File::class)->find($file->getId());
         $this->assertNull($deleted);
+
+        // Verify the file no longer exists on disk
+        $this->assertFileDoesNotExist($path);
     }
 
     public function test_02_deleteFile_forbidden(): void
@@ -108,7 +118,11 @@ class FilesControllerDeleteTest extends WebTestCase
         $foreignFile = new File();
         $foreignFile->setUser($user2);
         $foreignFile->setName('OtherUserFile.md');
-        $foreignFile->setPath('/other-user-file.md');
+        $path = $this->filePathGenerator->generate('OtherUserFile.md');
+        $foreignFile->setPath($path);
+        touch($path);
+        $this->assertFileExists($path);
+
         $this->entityManager->persist($foreignFile);
         $this->entityManager->flush();
 
@@ -121,6 +135,9 @@ class FilesControllerDeleteTest extends WebTestCase
         // The file must still exist in the database
         $stillExists = $this->entityManager->getRepository(File::class)->find($foreignFile->getId());
         $this->assertNotNull($stillExists);
+
+        // Verify the file still exists on disk
+        $this->assertFileExists($path);
     }
 
     public function test_03_deleteFile_unauthorized(): void
@@ -133,7 +150,11 @@ class FilesControllerDeleteTest extends WebTestCase
         $file = new File();
         $file->setUser($user);
         $file->setName('UnauthorizedDelete.md');
-        $file->setPath('/unauth-delete.md');
+        $path = $this->filePathGenerator->generate('UnauthorizedDelete.md');
+        $file->setPath($path);
+        touch($path);
+        $this->assertFileExists($path);
+
         $this->entityManager->persist($file);
         $this->entityManager->flush();
 
@@ -143,6 +164,9 @@ class FilesControllerDeleteTest extends WebTestCase
 
         // Expect 401 Unauthorized
         $this->assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
+
+        // Verify the file still exists on disk
+        $this->assertFileExists($path);
     }
 
     public function test_04_deleteDir_success(): void
@@ -219,6 +243,16 @@ class FilesControllerDeleteTest extends WebTestCase
 
     protected function tearDown(): void
     {
+        $container = static::getContainer();
+        $projectRoot = $container->getParameter('kernel.project_dir');
+        $filesDir = $projectRoot . '/var/files';
+        $files = glob($filesDir . '/*.ink');
+        foreach ($files as $file) {
+            if (is_file($file)) {
+                unlink($file);
+            }
+        }
+
         parent::tearDown();
 
         // doing this is recommended to avoid memory leaks
