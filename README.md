@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="../inkspire-frontend/logo.png" alt="InkSpire Logo" width="200"/>
+  <img src="logo.png" alt="InkSpire Logo" width="200"/>
 </p>
 
 # InkSpire API
