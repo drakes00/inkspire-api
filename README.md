@@ -4,6 +4,8 @@
 
 # InkSpire API
 
+![](https://github.com/drakes00/inkspire-api/actions/workflows/phpunit.yaml/badge.svg)
+
 This is the backend API for InkSpire, a modern web-based text editor. It provides all the necessary services for the [InkSpire Frontend](../inkspire-frontend) to function.
 
 ---
