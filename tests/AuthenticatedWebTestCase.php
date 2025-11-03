@@ -1,0 +1,96 @@
+<?php
+
+namespace App\Tests;
+
+use App\Entity\User;
+use App\Service\FilePathGenerator;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\KernelBrowser;
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+
+abstract class AuthenticatedWebTestCase extends WebTestCase
+{
+    protected KernelBrowser $client;
+    protected ?EntityManagerInterface $entityManager;
+    protected FilePathGenerator $filePathGenerator;
+
+    protected string $email = 'test@example.com';
+    protected string $password = 'password';
+
+    protected ?string $token = null;
+
+    protected function deauthenticateClient(): void
+    {
+        $this->client->setServerParameter('HTTP_Authorization', '');
+    }
+
+    protected function authenticateClient(): void
+    {
+        $this->client->setServerParameter('HTTP_Authorization', 'Bearer ' . $this->token);
+    }
+
+    protected function createAuthenticatedClient($client, string $email, string $password)
+    {
+        $client->jsonRequest('POST', '/auth', [
+            'username' => $email,
+            'password' => $password,
+        ]);
+
+        $data = json_decode($client->getResponse()->getContent(), true);
+        $this->token = $data['token'];
+        $this->authenticateClient();
+
+        return $client;
+    }
+
+    protected function createUser(string $email, string $password): User
+    {
+        $container = static::getContainer();
+        $passwordHasher = $container->get('security.user_password_hasher');
+        $this->filePathGenerator = $container->get(FilePathGenerator::class);
+
+        $user = (new User())->setEmail($email);
+        $user->setPassword($passwordHasher->hashPassword($user, $password));
+
+        return $user;
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->client = static::createClient();
+        $container = static::getContainer();
+        $this->entityManager = $container->get('doctrine.orm.entity_manager');
+        $this->filePathGenerator = $container->get(FilePathGenerator::class);
+
+        // Clean up the database before each test
+        $this->entityManager->createQuery('DELETE FROM App\\Entity\\File')->execute();
+        $this->entityManager->createQuery('DELETE FROM App\\Entity\\Dir')->execute();
+        $this->entityManager->createQuery('DELETE FROM App\\Entity\\User')->execute();
+
+        $user = $this->createUser($this->email, $this->password);
+        $this->entityManager->persist($user);
+        $this->entityManager->flush();
+        $this->client = $this->createAuthenticatedClient($this->client, $this->email, $this->password);
+    }
+
+
+    protected function tearDown(): void
+    {
+        $container = static::getContainer();
+        $projectRoot = $container->getParameter('kernel.project_dir');
+        $filesDir = $projectRoot . '/var/files';
+        $files = glob($filesDir . '/*.ink');
+        foreach ($files as $file) {
+            if (is_file($file)) {
+                unlink($file);
+            }
+        }
+
+        parent::tearDown();
+
+        // doing this is recommended to avoid memory leaks
+        $this->entityManager->close();
+        $this->entityManager = null;
+    }
+}

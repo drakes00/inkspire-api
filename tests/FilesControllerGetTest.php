@@ -5,73 +5,10 @@ namespace App\Tests;
 use App\Entity\User;
 use App\Entity\Dir;
 use App\Entity\File;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Response;
 
-class FilesControllerGetTest extends WebTestCase
+class FilesControllerGetTest extends AuthenticatedWebTestCase
 {
-    private KernelBrowser $client;
-    private ?EntityManagerInterface $entityManager;
-
-    private string $email = 'test@example.com';
-    private string $password = 'password';
-
-    private ?string $token = null;
-
-    protected function deauthenticateClient(): void
-    {
-        $this->client->setServerParameter('HTTP_Authorization', '');
-    }
-
-    protected function authenticateClient(): void
-    {
-        $this->client->setServerParameter('HTTP_Authorization', 'Bearer ' . $this->token);
-    }
-
-    protected function createAuthenticatedClient($client, string $email, string $password)
-    {
-        $client->jsonRequest('POST', '/auth', [
-            'username' => $email,
-            'password' => $password,
-        ]);
-
-        $data = json_decode($client->getResponse()->getContent(), true);
-        $this->token = $data['token'];
-        $this->authenticateClient();
-
-        return $client;
-    }
-
-    private function createUser(string $email, string $password): User
-    {
-        $container = static::getContainer();
-        $passwordHasher = $container->get('security.user_password_hasher');
-
-        $user = (new User())->setEmail($email);
-        $user->setPassword($passwordHasher->hashPassword($user, $password));
-
-        return $user;
-    }
-
-    protected function setUp(): void
-    {
-        $this->client = static::createClient();
-        $container = static::getContainer();
-        $this->entityManager = $container->get('doctrine.orm.entity_manager');
-
-        // Clean up the database before each test
-        $this->entityManager->createQuery('DELETE FROM App\\Entity\\File')->execute();
-        $this->entityManager->createQuery('DELETE FROM App\\Entity\\Dir')->execute();
-        $this->entityManager->createQuery('DELETE FROM App\\Entity\\User')->execute();
-
-        $user = $this->createUser($this->email, $this->password);
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-        $this->client = $this->createAuthenticatedClient($this->client, $this->email, $this->password);
-    }
-
     public function test_01_treeEndpoint(): void
     {
         $userRepository = $this->entityManager->getRepository(User::class);
@@ -266,15 +203,5 @@ class FilesControllerGetTest extends WebTestCase
         $this->assertNotNull($foundFile);
         $this->assertEquals('User2 File', $foundFile->getName());
         $this->assertEquals('user2@example.com', $foundFile->getUser()->getEmail());
-    }
-
-
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-
-        // doing this is recommended to avoid memory leaks
-        $this->entityManager->close();
-        $this->entityManager = null;
     }
 }
