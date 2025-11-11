@@ -8,6 +8,7 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use App\Entity\User;
 use App\Entity\File;
 use App\Entity\Dir;
+use App\Entity\Model;
 
 class AppFixtures extends Fixture
 {
@@ -21,34 +22,65 @@ class AppFixtures extends Fixture
 
     public function load(ObjectManager $manager): void
     {
-        // Create a user.
-        $user = new User();
-        $user->setEmail($this->email);
-        $user->setPassword($this->passwordHasher->hashPassword($user, $this->password));
+        // --- User ---
+        $userRepository = $manager->getRepository(User::class);
+        $user = $userRepository->findOneBy(['email' => $this->email]);
 
-        // Create a loose file.
-        $looseFile = new File();
-        $looseFile->setUser($user);
-        $looseFile->setName('Loose File');
-        $looseFile->setPath('/loose-file.md');
+        if (!$user) {
+            $user = new User();
+            $user->setEmail($this->email);
+            $user->setPassword($this->passwordHasher->hashPassword($user, $this->password));
+            $manager->persist($user);
+        }
 
-        // Create a directory.
-        $dir = new Dir();
-        $dir->setUser($user);
-        $dir->setName('Test Dir');
-        $dir->setSummary('This is a test directory.');
+        // --- Directory ---
+        $dirRepository = $manager->getRepository(Dir::class);
+        $dir = $dirRepository->findOneBy(['name' => 'Test Dir', 'user' => $user]);
 
-        // Create a file inside the directory.
-        $fileInDir = new File();
-        $fileInDir->setUser($user);
-        $fileInDir->setName('File in Dir');
-        $fileInDir->setPath('/test-dir/file-in-dir.md');
-        $fileInDir->setDir($dir);
+        if (!$dir) {
+            $dir = new Dir();
+            $dir->setUser($user);
+            $dir->setName('Test Dir');
+            $dir->setSummary('This is a test directory.');
+            $manager->persist($dir);
+        }
 
-        $manager->persist($user);
-        $manager->persist($looseFile);
-        $manager->persist($dir);
-        $manager->persist($fileInDir);
+        // --- Files ---
+        $fileRepository = $manager->getRepository(File::class);
+        $looseFile = $fileRepository->findOneBy(['path' => '/loose-file.md', 'user' => $user]);
+
+        if (!$looseFile) {
+            $looseFile = new File();
+            $looseFile->setUser($user);
+            $looseFile->setName('Loose File');
+            $looseFile->setPath('/loose-file.md');
+            $manager->persist($looseFile);
+        }
+
+        $fileInDir = $fileRepository->findOneBy(['path' => '/test-dir/file-in-dir.md', 'user' => $user]);
+
+        if (!$fileInDir) {
+            $fileInDir = new File();
+            $fileInDir->setUser($user);
+            $fileInDir->setName('File in Dir');
+            $fileInDir->setPath('/test-dir/file-in-dir.md');
+            $fileInDir->setDir($dir);
+            $manager->persist($fileInDir);
+        }
+
+        // --- Models ---
+        $modelRepository = $manager->getRepository(Model::class);
+        $modelNames = ['llama3.3:70b', 'gemma3:7b', 'mistral-nemo:12b'];
+
+        foreach ($modelNames as $name) {
+            $model = $modelRepository->findOneBy(['name' => $name]);
+            if (!$model) {
+                $model = new Model();
+                $model->setName($name);
+                $manager->persist($model);
+            }
+        }
+
         $manager->flush();
     }
 }
