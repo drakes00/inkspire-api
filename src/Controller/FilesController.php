@@ -453,10 +453,20 @@ class FilesController extends AbstractController
             ], Response::HTTP_FORBIDDEN);
         }
 
-        // TODO: Implement logic to handle files within the directory (e.g., move to root, delete them).
-        // For now, assuming cascade delete is configured or files will be handled separately.
+        // Delete all files within the directory, both from the filesystem and the database.
+        foreach ($dir->getFiles() as $file) {
+            // Delete the physical file if it exists
+            if ($file->getPath() && file_exists($file->getPath())) {
+                unlink($file->getPath());
+            }
+            // Remove the file entity from the entity manager
+            $entityManager->remove($file);
+        }
 
+        // Now, remove the directory entity itself
         $entityManager->remove($dir);
+        
+        // Flush all changes (file deletions and directory deletion) to the database
         $entityManager->flush();
 
         return $this->json(null, Response::HTTP_NO_CONTENT);

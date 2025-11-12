@@ -103,7 +103,7 @@ class FilesControllerDeleteTest extends AuthenticatedWebTestCase
         $this->assertFileExists($path);
     }
 
-    public function test_04_deleteDir_success(): void
+    public function test_04_deleteDir_with_nested_files_success(): void
     {
         $userRepository = $this->entityManager->getRepository(User::class);
         $user = $userRepository->findOneBy(['email' => $this->email]);
@@ -111,20 +111,42 @@ class FilesControllerDeleteTest extends AuthenticatedWebTestCase
         // Create a directory owned by the authenticated user
         $dir = new Dir();
         $dir->setUser($user);
-        $dir->setName('DeleteDir');
-        $dir->setSummary('Directory to delete');
+        $dir->setName('DeleteDirWithFiles');
         $this->entityManager->persist($dir);
+
+        // Create a file inside the directory
+        $fileInDir = new File();
+        $fileInDir->setUser($user);
+        $fileInDir->setName('NestedFileToDelete.md');
+        $filePath = $this->filePathGenerator->generate('NestedFileToDelete.md');
+        $fileInDir->setPath($filePath);
+        $fileInDir->setDir($dir);
+        touch($filePath); // Create physical file
+        $this->assertFileExists($filePath);
+        $this->entityManager->persist($fileInDir);
+        
         $this->entityManager->flush();
 
+        // Store IDs for later verification
+        $dirId = $dir->getId();
+        $fileId = $fileInDir->getId();
+
         // Attempt deletion through API
-        $this->client->request('DELETE', '/api/dir/' . $dir->getId());
+        $this->client->request('DELETE', '/api/dir/' . $dirId);
 
         // Expect 204 No Content on success
         $this->assertResponseStatusCodeSame(Response::HTTP_NO_CONTENT);
 
         // Verify the directory no longer exists in the database
-        $deleted = $this->entityManager->getRepository(Dir::class)->find($dir->getId());
-        $this->assertNull($deleted);
+        $deletedDir = $this->entityManager->getRepository(Dir::class)->find($dirId);
+        $this->assertNull($deletedDir);
+
+        // Verify the nested file no longer exists in the database
+        $deletedFile = $this->entityManager->getRepository(File::class)->find($fileId);
+        $this->assertNull($deletedFile);
+
+        // Verify the physical file no longer exists on disk
+        $this->assertFileDoesNotExist($filePath);
     }
 
     public function test_05_deleteDir_forbidden(): void
