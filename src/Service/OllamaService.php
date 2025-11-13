@@ -55,4 +55,38 @@ class OllamaService
             return $modelNames;
         });
     }
+
+    /**
+     * Generates text using a specified model and prompt from the Ollama API.
+     *
+     * @param string $model The name of the model to use.
+     * @param string $prompt The user's prompt.
+     * @return string The generated text response.
+     * @throws \Symfony\Contracts\HttpClient\Exception\ExceptionInterface
+     */
+    public function generateText(string $model, string $prompt): string
+    {
+        $response = $this->client->request(
+            'POST',
+            $this->ollamaServiceUrl . '/api/generate',
+            [
+                'json' => [
+                    'model' => $model,
+                    'prompt' => $prompt,
+                    'stream' => false, // We want the full response at once
+                ],
+            ]
+        );
+
+        if ($response->getStatusCode() !== Response::HTTP_OK) {
+            // In a real app, you might throw a more specific exception
+            // with details from $response->getContent(false)
+            throw new \Exception('Failed to generate text from Ollama API.');
+        }
+
+        $data = $response->toArray();
+
+        // The generated text is in the 'response' key
+        return $data['response'] ?? '';
+    }
 }
