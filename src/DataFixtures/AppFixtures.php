@@ -8,7 +8,6 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use App\Entity\User;
 use App\Entity\File;
 use App\Entity\Dir;
-use App\Entity\Model;
 
 class AppFixtures extends Fixture
 {
@@ -66,19 +65,6 @@ class AppFixtures extends Fixture
             $fileInDir->setPath('/test-dir/file-in-dir.md');
             $fileInDir->setDir($dir);
             $manager->persist($fileInDir);
-        }
-
-        // --- Models ---
-        $modelRepository = $manager->getRepository(Model::class);
-        $modelNames = ['llama3.3:70b', 'gemma3:7b', 'mistral-nemo:12b'];
-
-        foreach ($modelNames as $name) {
-            $model = $modelRepository->findOneBy(['name' => $name]);
-            if (!$model) {
-                $model = new Model();
-                $model->setName($name);
-                $manager->persist($model);
-            }
         }
 
         $manager->flush();
