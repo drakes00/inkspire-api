@@ -50,7 +50,7 @@ jobs:
       - name: Setup PHP with extensions
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.5'
           extensions: dom, xml, mbstring, curl, intl
           coverage: none
 
