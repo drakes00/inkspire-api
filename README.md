@@ -97,6 +97,9 @@ A Postman collection or OpenAPI/Swagger documentation will be available soon. He
 - `PUT /api/dir/{id}`: Update a directory's details (e.g., name, summary).
 - `DELETE /api/dir/{id}`: Delete a directory.
 
+### Text Generation
+- `POST /api/ollama/generate`: Get a completion for the provided text using the provided model.
+
 ---
 
 ## 🧪 Quality and Testing
