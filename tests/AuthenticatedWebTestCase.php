@@ -63,6 +63,13 @@ abstract class AuthenticatedWebTestCase extends WebTestCase
         $this->entityManager = $container->get('doctrine.orm.entity_manager');
         $this->filePathGenerator = $container->get(FilePathGenerator::class);
 
+        // Ensure the test files directory exists
+        $projectRoot = $container->getParameter('kernel.project_dir');
+        $filesDir = $projectRoot . '/' . $container->getParameter('app.files_dir');
+        if (!is_dir($filesDir)) {
+            mkdir($filesDir, 0777, true);
+        }
+
         // Clean up the database before each test
         $this->entityManager->createQuery('DELETE FROM App\\Entity\\File')->execute();
         $this->entityManager->createQuery('DELETE FROM App\\Entity\\Dir')->execute();
@@ -79,11 +86,14 @@ abstract class AuthenticatedWebTestCase extends WebTestCase
     {
         $container = static::getContainer();
         $projectRoot = $container->getParameter('kernel.project_dir');
-        $filesDir = $projectRoot . '/var/files';
-        $files = glob($filesDir . '/*.ink');
-        foreach ($files as $file) {
-            if (is_file($file)) {
-                unlink($file);
+        $filesDir = $projectRoot . '/' . $container->getParameter('app.files_dir');
+        
+        if (is_dir($filesDir)) {
+            $files = glob($filesDir . '/*.ink');
+            foreach ($files as $file) {
+                if (is_file($file)) {
+                    unlink($file);
+                }
             }
         }
 

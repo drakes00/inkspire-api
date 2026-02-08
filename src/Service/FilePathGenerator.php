@@ -5,11 +5,12 @@ namespace App\Service;
 class FilePathGenerator
 {
     private string $projectRoot;
-    private string $basePathRelative = "var/files";
+    private string $basePathRelative;
 
-    public function __construct(string $projectRoot)
+    public function __construct(string $projectRoot, string $basePathRelative = "var/files")
     {
         $this->projectRoot = $projectRoot;
+        $this->basePathRelative = $basePathRelative;
     }
 
     public function generate(string $title, string $extension = 'ink'): string

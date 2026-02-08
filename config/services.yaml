@@ -11,6 +11,7 @@ parameters:
     app.ollama_num_ctx: 4096
     app.ollama_top_k: 40
     app.ollama_top_p: 0.9
+    app.files_dir: 'var/files'
 
 services:
     # default configuration for services in *this* file
@@ -29,6 +30,7 @@ services:
     'App\Service\FilePathGenerator':
         arguments:
             $projectRoot: '%kernel.project_dir%'
+            $basePathRelative: '%app.files_dir%'
 
     'App\Service\OllamaService':
         arguments:
@@ -37,3 +39,7 @@ services:
             $numCtx: '%app.ollama_num_ctx%'
             $topK: '%app.ollama_top_k%'
             $topP: '%app.ollama_top_p%'
+
+when@test:
+    parameters:
+        app.files_dir: 'var/files_test'

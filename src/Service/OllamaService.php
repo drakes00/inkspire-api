@@ -8,7 +8,7 @@ use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 use Twig\Environment;
 
-class OllamaService
+class OllamaService implements OllamaServiceInterface
 {
     private string $ollamaServiceUrl;
     private int $temperature;
